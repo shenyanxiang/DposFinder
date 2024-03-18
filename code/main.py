@@ -12,17 +12,17 @@ parser = argparse.ArgumentParser(
     description='Phage Host Interaction Prediction')
 parser.add_argument('-f', default='', type=str)
 
-parser.add_argument('--mode', type=str, default='train',
+parser.add_argument('--mode', type=str, default='final_train',
                     help='mode to run(train, test, final_train or predict)')
 
 parser.add_argument('--model', type=str, default='DposFinder',
                     help='name of the model to use')
 
 parser.add_argument('--data_path', type=str, default='./data/',
-                    help='path to dataset')
+                    help='path to dataset (e.g. ./data/)')
 
 parser.add_argument('--test_data', type=str, default='',
-                    help='name of test set')
+                    help='name of test set file (e.g. test_set.fasta)')
 
 # Dropout
 parser.add_argument('--attn_dropout', type=float, default=0.05,
@@ -111,8 +111,8 @@ if args.mode == 'train':
         collate_fn=alphabet.get_batch_converter(), generator=torch.Generator(device='cuda' if use_cuda else 'cpu'))
     valid_loader = DataLoader(valid_set, batch_size=args.batch_size,
         collate_fn=alphabet.get_batch_converter(), shuffle=False, generator=torch.Generator(device='cuda' if use_cuda else 'cpu'))
-    # train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=True, collate_fn=padtoks, generator=torch.Generator(device='cuda:1' if use_cuda else 'cpu'))
-    # valid_loader = DataLoader(valid_set, batch_size=args.batch_size, shuffle=False, collate_fn=padtoks, generator=torch.Generator(device='cuda:1' if use_cuda else 'cpu'))
+    # train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=True, collate_fn=padtoks, generator=torch.Generator(device='cuda' if use_cuda else 'cpu'))
+    # valid_loader = DataLoader(valid_set, batch_size=args.batch_size, shuffle=False, collate_fn=padtoks, generator=torch.Generator(device='cuda' if use_cuda else 'cpu'))
     test_loader = DataLoader(test_set, batch_size=args.batch_size,
         collate_fn=alphabet.get_batch_converter(), shuffle=False, generator=torch.Generator(device='cuda' if use_cuda else 'cpu'))
 
@@ -223,14 +223,13 @@ elif args.mode == 'final_train':
     hyp_params.criterion = 'BCEWithLogitsLoss'
 
 if __name__ == '__main__':
-    with torch.cuda.device('cuda:0'):
-        if args.mode == 'train':
-            test_loss = trainer.initiate(
-                hyp_params, train_loader, valid_loader, test_loader)
-        elif args.mode == 'test':
-            test_loss = trainer.test_case(hyp_params, test_loader)
-        elif args.mode == 'predict':
-            trainer.predict(hyp_params, test_loader)
-        elif args.mode == 'final_train':
-            test_loss = trainer.final_train(
-                hyp_params, train_loader, test_loader)
+    if args.mode == 'train':
+        test_loss = trainer.initiate(
+            hyp_params, train_loader, valid_loader, test_loader)
+    elif args.mode == 'test':
+        test_loss = trainer.test_case(hyp_params, test_loader)
+    elif args.mode == 'predict':
+        trainer.predict(hyp_params, test_loader)
+    elif args.mode == 'final_train':
+        test_loss = trainer.final_train(
+            hyp_params, train_loader, test_loader)

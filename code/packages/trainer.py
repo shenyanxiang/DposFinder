@@ -180,7 +180,7 @@ def final_train_model(settings, hyp_params, train_loader, test_loader, device):
     os.makedirs('./log/', exist_ok=True)
     log_dir = './log/'
     logging.basicConfig(handlers=[
-        logging.FileHandler(filename=f'./log/train_{hyp_params.fold_num}.log', encoding='utf-8', mode='w+')],
+        logging.FileHandler(filename=f'./log/train.log', encoding='utf-8', mode='w+')],
         format="%(asctime)s %(levelname)s:%(message)s", datefmt="%F %A %T", level=logging.INFO)
     writer = SummaryWriter(log_dir)
 

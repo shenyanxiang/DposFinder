@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 import math
 import logomaker as lm
 import matplotlib as mpl
-import umap.umap_ as umap
 
 def label2index(label):
     label_dict = {'neg': 0, 'pos': 1}
@@ -136,21 +135,21 @@ def plot_tsne(x, y, color_dict, title, output_dir,ignore_ylabel=False):
     plt.savefig(os.path.join(output_dir, f"img/tsne.png"), dpi=300)
     plt.savefig(os.path.join(output_dir, f"pdf/tsne.pdf"))
 
-def plot_umap(x, y, color_dict, title, output_dir, ignore_ylabel=False):
-    reducer = umap.UMAP(random_state=42)
-    x_umap = reducer.fit_transform(x)
+# def plot_umap(x, y, color_dict, title, output_dir, ignore_ylabel=False):
+#     reducer = umap.UMAP(random_state=42)
+#     x_umap = reducer.fit_transform(x)
     
-    x_min, x_max = x_umap.min(0), x_umap.max(0)
-    x_norm = (x_umap - x_min) / (x_max - x_min)
+#     x_min, x_max = x_umap.min(0), x_umap.max(0)
+#     x_norm = (x_umap - x_min) / (x_max - x_min)
     
-    for i, (name, color) in enumerate(color_dict.items()):
-        plt.scatter(x_norm[y == i, 0], x_norm[y == i, 1], c=color, alpha=0.8, s=10, label=name)
+#     for i, (name, color) in enumerate(color_dict.items()):
+#         plt.scatter(x_norm[y == i, 0], x_norm[y == i, 1], c=color, alpha=0.8, s=10, label=name)
         
-    plt.xlabel("UMAP Dimension 1")
-    if not ignore_ylabel:
-        plt.ylabel("UMAP Dimension 2")
+#     plt.xlabel("UMAP Dimension 1")
+#     if not ignore_ylabel:
+#         plt.ylabel("UMAP Dimension 2")
 
-    plt.title(title)
-    plt.legend(loc="lower right")
-    plt.savefig(os.path.join(output_dir, f"img/umap.png"), dpi=300)
-    plt.savefig(os.path.join(output_dir, f"pdf/umap.pdf"))
+#     plt.title(title)
+#     plt.legend(loc="lower right")
+#     plt.savefig(os.path.join(output_dir, f"img/umap.png"), dpi=300)
+#     plt.savefig(os.path.join(output_dir, f"pdf/umap.pdf"))

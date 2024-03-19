@@ -39,6 +39,7 @@ def save_load_name(args, name=''):
 
 def save_model(args, model, name=''):
     name = save_load_name(args, name)
+    os.makedirs('./model/', exist_ok=True)
     torch.save(model, f'./model/{name}.pt')
 
 

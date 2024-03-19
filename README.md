@@ -20,6 +20,10 @@ conda env create -f environment.yml
 conda activate DposFinder
 ```
 
-3. Download the weights of DposFinder model from 
+3. Download the weights of DposFinder model from the link below and put it into `model` directory:
 
-https://tool2-mml.sjtu.edu.cn/DposFinder/model/Final_DposFinder.pt.
+https://tool2-mml.sjtu.edu.cn/DposFinder/model/Final_DposFinder.pt
+
+
+## Usage
+

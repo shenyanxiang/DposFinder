@@ -44,7 +44,8 @@ def save_model(args, model, name=''):
 
 def load_model(args, name=''):
     name = save_load_name(args, name)
-    model = torch.load(f'./model/{name}.pt')
+    device = torch.device('cuda' if args.use_cuda else 'cpu')
+    model = torch.load(f'./model/{name}.pt', map_location=device)
     return model
 
 def draw_attn(output_dir, attn_dict):

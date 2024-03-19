@@ -22,7 +22,7 @@ parser.add_argument('--data_path', type=str, default='./data/',
                     help='path to dataset (e.g. ./data/)')
 
 parser.add_argument('--test_data', type=str, default='',
-                    help='name of test set file (e.g. test_set.fasta)')
+                    help='name of FASTA file containing protein sequences to be predicted. (e.g. test_set.fasta)')
 
 # Dropout
 parser.add_argument('--attn_dropout', type=float, default=0.05,
@@ -79,17 +79,21 @@ args = parser.parse_args()
 
 torch.manual_seed(args.seed)
 
-use_cuda = False
-torch.set_default_tensor_type('torch.FloatTensor')
-if torch.cuda.is_available():
-    if args.no_cuda:
+if args.no_cuda:
+    use_cuda = False
+    torch.set_default_tensor_type('torch.FloatTensor')
+    if torch.cuda.is_available():
         print(
             "WARNING: You have a CUDA device, so you should probably run without --no_cuda")
-        device = torch.device('cpu')
-    else:
-        torch.cuda.manual_seed(args.seed)
-        torch.set_default_tensor_type('torch.cuda.FloatTensor')
-        use_cuda = True
+else:
+    torch.cuda.manual_seed(args.seed)
+    torch.set_default_tensor_type('torch.cuda.FloatTensor')
+    use_cuda = True
+    if not torch.cuda.is_available():
+        print('*' * 10)
+        print("CUDA is not available, please check your device or run with --no_cuda")
+        print('*' * 10)
+        exit(0)
 
 alphabet = Alphabet.from_architecture("roberta_large")
 

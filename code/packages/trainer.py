@@ -291,8 +291,8 @@ def test_case(hyp_params, test_loader):
     criterion = getattr(nn, hyp_params.criterion)()
 
     model.return_embedding = hyp_params.return_embedding
-    model.eval()
     model.to(device)
+    model.eval()
     if hyp_params.return_embedding:
         embeddings = []
         truths = []
@@ -337,7 +337,7 @@ def test_case(hyp_params, test_loader):
 
         result_df = pd.DataFrame({'prob': results.view(-1).cpu().detach().numpy(),
                                 'pred': preds.view(-1).cpu().detach().numpy()})
-        result_df.to_csv(os.path.join(hyp_params.data_path, f'{hyp_params.test_data}_result.tsv'), index=False, sep='\t')
+        result_df.to_csv(os.path.join(hyp_params.data_path, f'{hyp_params.test_data.split(".")[0]}_result.tsv'), index=False, sep='\t')
 
     return avg_loss
 
@@ -353,20 +353,50 @@ def predict(hyp_params, test_loader):
 
     model.return_attn = hyp_params.return_attn
     model.return_embedding = hyp_params.return_embedding
+    model.return_subseq = hyp_params.return_subseq
     model.eval()
     
     if hyp_params.return_embedding:
         embedding_dict = {}
+        dict_name = hyp_params.test_data.split(".")[0]
         with torch.no_grad():
             for labels, strs, toks in test_loader:
                 toks.to(device)
                 embedding = model(strs, toks)
                 for i in range(len(strs)):
                     embedding_dict[labels[i]] = embedding[i].cpu().numpy()
-                embedding_path = os.path.join(hyp_params.data_path, f'embedding/{hyp_params.test_data}.npz')
+                embedding_path = os.path.join(hyp_params.data_path, f'embedding/{dict_name}.npz')
         os.makedirs(os.path.join(hyp_params.data_path, 'embedding'), exist_ok=True)
-        print(f"Saving Depolymerase embedding in {os.path.join(hyp_params.data_path, f'embedding/{hyp_params.test_data}.npz')}")
+        print(f"Saving Depolymerase embedding in {os.path.join(hyp_params.data_path, f'embedding/{dict_name}.npz')}")
         np.savez(embedding_path, **embedding_dict)
+    elif hyp_params.return_subseq:
+        with torch.no_grad():
+            for labels, strs, toks in test_loader:
+                toks.to(device)
+                index_list = model(strs, toks)
+
+                subseq_path = os.path.join(hyp_params.data_path, 'subseq/')
+                os.makedirs(subseq_path, exist_ok=True)
+                fasta_path = os.path.join(subseq_path, f'{hyp_params.test_data.split(".")[0]}_subseq.fasta')
+
+                with open(fasta_path, 'a') as label_file:
+                    for i, label in enumerate(labels):
+                        label_file.write(f'>{label}\n')
+                        if len(strs[i]) < 150:
+                            label_file.write(f'{strs[i]}\n')
+                        else:
+                            label_file.write(f'{strs[i][index_list[i]:index_list[i]+150]}\n')
+                # fasta_path = os.path.join(subseq_path, f'{hyp_params.test_data.split(".")[0]}.tsv')
+                # # with open(fasta_path, 'a') as label_file:
+                # #     for i, label in enumerate(labels):
+                # #         label_file.write(str(index_list[i])+ '\n')
+
+                # with open(fasta_path, 'a') as label_file:
+                #     for arr in index_list:
+                #         for element in arr:
+                #             label_file.write(str(element) + '\n')
+
+            print(f"Saving Depolymerase subseq in {fasta_path}")
     else:
         results = []
         label_list = []
@@ -383,7 +413,8 @@ def predict(hyp_params, test_loader):
                     os.makedirs(attn_path, exist_ok=True)
                     print(f"Saving Depolymerase attention in {os.path.join(attn_path, f'{labels[0]}.npz')}")
                     np.savez(os.path.join(attn_path, f'{labels[0]}.npz'), **attn_dict)
-                    # draw_attn(os.path.join(hyp_params.data_path, 'attn/'), attn_dict)
+                    print(f"Drawing attention map in {os.path.join(hyp_params.data_path, 'attn/img/')}")
+                    draw_attn(os.path.join(hyp_params.data_path, 'attn/'), attn_dict)
                 else:
                     logits = model(strs, toks)
 

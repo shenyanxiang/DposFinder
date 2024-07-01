@@ -5,7 +5,7 @@ from packages import trainer
 from packages.LoadData import DepolymeraseDataset, DposFinderDataset
 from torch.utils.data import DataLoader
 import os
-from esm import Alphabet
+import esm
 
 
 parser = argparse.ArgumentParser(
@@ -34,16 +34,16 @@ parser.add_argument('--embed_dropout', type=float, default=0.4,
 
 parser.add_argument('--n_layers', type=int, default=1,
                     help='number of layers in the network (default: 1)')
-parser.add_argument('--num_heads', type=int, default=4,
-                    help='number of heads for the transformer network (default: 4)')
+parser.add_argument('--num_heads', type=int, default=8,
+                    help='number of heads for the transformer network (default: 8)')
 parser.add_argument('--hid_dim', type=int, default=256,
                     help='number of hidden units in the network (default: 256)')
 parser.add_argument('--attn_mask', action='store_false',
                     help='use attention mask for transformer (default: True)')
 
 # Tuning
-parser.add_argument('--batch_size', type=int, default=8, metavar='N',
-                    help='input batch size for training (default: 8)')
+parser.add_argument('--batch_size', type=int, default=16, metavar='N',
+                    help='input batch size for training (default: 16)')
 parser.add_argument('--clip', type=float, default=0.8,
                     help='gradient clip value (default: 0.8)')
 parser.add_argument('--lr', type=float, default=5e-5,
@@ -69,6 +69,8 @@ parser.add_argument('--name', type=str, default='Final',
                     help='name of the trial (default: "Final")')
 parser.add_argument('--return_embedding', action='store_true',
                     help='return hidden embeddings instead of logits (default: False)')
+parser.add_argument('--return_subseq', action='store_true',
+                    help='return high attention region pooling embeddings for serotype prediction (default: False)')
 parser.add_argument('--return_attn', action='store_true',
                     help='return attention weights (default: False)')
 parser.add_argument('--kfold', default=0, type=int,
@@ -95,7 +97,7 @@ else:
         print('*' * 10)
         exit(0)
 
-alphabet = Alphabet.from_architecture("roberta_large")
+_, alphabet = esm.pretrained.esm2_t33_650M_UR50D()
 
 if args.mode == 'train':
     ####################################################################
@@ -227,6 +229,7 @@ elif args.mode == 'final_train':
     hyp_params.criterion = 'BCEWithLogitsLoss'
 
 if __name__ == '__main__':
+    torch.cuda.set_device(0)
     if args.mode == 'train':
         test_loss = trainer.initiate(
             hyp_params, train_loader, valid_loader, test_loader)

@@ -61,12 +61,13 @@ def draw_attn(output_dir, attn_dict):
     
     if not os.path.exists(os.path.join(output_dir, 'img')):
         os.mkdir(os.path.join(output_dir, 'img'))
-    if not os.path.exists(os.path.join(output_dir, 'pdf')):
-        os.mkdir(os.path.join(output_dir, 'pdf'))
+    # if not os.path.exists(os.path.join(output_dir, 'pdf')):
+    #     os.mkdir(os.path.join(output_dir, 'pdf'))
     offset = .1
     for key, value in attn_dict.items():
         seq = list(value[0])
         attn = value[1]
+        attn = np.sqrt(attn)
         max_attn = max(attn)
         min_attn = min(attn)
 
@@ -104,7 +105,7 @@ def draw_attn(output_dir, attn_dict):
         plt.tight_layout()
 
         plt.savefig(os.path.join(output_dir, f"img/{key}_attn.png"), dpi=300)
-        plt.savefig(os.path.join(output_dir, f"pdf/{key}_attn.pdf"))
+        # plt.savefig(os.path.join(output_dir, f"pdf/{key}_attn.pdf"))
         plt.close()
 
 def plot_tsne(x, y, color_dict, title, output_dir,ignore_ylabel=False):

@@ -37,7 +37,7 @@ class Attention(nn.Module):
         logits = einsum('b h i d, b h j d -> b h i j', q, k)
 
         if mask is not None:
-            logits.masked_fill(mask == 0, -1e9)
+            logits.masked_fill_(mask == 0, float('-inf'))
 
         attn = logits.softmax(dim=-1)
         attn = self.attn_dropout(attn)

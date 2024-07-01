@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import esm
 from packages.modules import TransformerLayer, MLPLayer
+import numpy as np
 
 
 class ESM2FINETUNE(nn.Module):
@@ -39,7 +40,7 @@ class ESM2FINETUNE(nn.Module):
             return logits
 
 class DPOSFINDER(nn.Module):
-    def __init__(self, hyp_params, unfreeze_last=False):
+    def __init__(self, hyp_params, unfreeze_last=False, return_subseq=False):
 
         super().__init__()
         self.emb_dim = hyp_params.emb_dim
@@ -55,12 +56,6 @@ class DPOSFINDER(nn.Module):
         self.attn_dropout = hyp_params.attn_dropout
         self.heads = hyp_params.num_heads
         self.clf = nn.Linear(self.hid_dim, 1)
-        self.net = nn.Sequential(*[
-            nn.Linear(1280, self.hid_dim),
-            nn.ReLU(),
-            nn.Linear(self.hid_dim, 128),
-            nn.ReLU(),
-            nn.Linear(128,1)])
 
         self.layers = nn.ModuleList(
             [
@@ -68,6 +63,7 @@ class DPOSFINDER(nn.Module):
                 for _ in range(self.num_layers)
             ]
         )
+        self.return_subseq = return_subseq
 
         for param in self.pretrained_model.parameters():
             param.requires_grad = False
@@ -83,8 +79,6 @@ class DPOSFINDER(nn.Module):
         out = self.pretrained_model(
             toks, repr_layers=[self.repr_layer], return_contacts=False)
         emb = out["representations"][33][:, 1:-1, :] #bs,seq_len,emb_dim
-        # out2 = torch.cat([emb[i, :len(strs[i]) + 1].mean(0).unsqueeze(0)
-        #                 for i in range(batch_size)], dim=0) # average pooling along the sequence
         emb = emb * padding_mask.unsqueeze(-1).type_as(emb)
 
         emb = emb.transpose(1, 2)
@@ -95,11 +89,36 @@ class DPOSFINDER(nn.Module):
             emb, attn = layer(
                 emb, mask=padding_mask.unsqueeze(1).unsqueeze(2)
             )
-        out = torch.cat([emb[i, :len(strs[i]) + 1].mean(0).unsqueeze(0)
-                        for i in range(batch_size)], dim=0) # average pooling along the sequence
+        if self.return_subseq:
+            index_list = []
+            for i in range(batch_size):
+                mean_attn = attn[i, :, :len(strs[i]), :len(strs[i])].sum(0).mean(0).cpu().numpy()
+                mean_attn = np.sqrt(mean_attn)
+                norm_attn = (mean_attn-min(mean_attn))/(max(mean_attn)-min(mean_attn))
+                max_sum_index = np.argmax(np.convolve(norm_attn, np.ones(150), mode='valid'))
+
+                ###calculate key position percent###
+                # key_aa_num = np.sum(norm_attn>0.5)
+                # key_aa_num_region = np.sum(norm_attn[max_sum_index:max_sum_index+50]>0.5)
+                # index_start = key_aa_num_region/key_aa_num
+
+                ###calculate region attention score/ whole sequence attention score###
+                # region_attn = norm_attn[max_sum_index:max_sum_index+250].sum()
+                # index_start = region_attn/250
+
+                ###return the whole attn score###
+                # index_start = norm_attn
+
+                index_start = max_sum_index
+                index_list.append(index_start)
+        else:
+            out = torch.cat([emb[i, :len(strs[i]) + 1].mean(0).unsqueeze(0)
+                            for i in range(batch_size)], dim=0) # average pooling along the sequence
         
         if self.return_embedding:
             return out
+        elif self.return_subseq:
+            return index_list
         else:
             logits = self.clf(out)
             if self.return_attn:
@@ -109,8 +128,8 @@ class DPOSFINDER(nn.Module):
             
 class SPIKEHUNTER(nn.Module):
     def __init__(self, hyp_params,
-                 unfreeze_last=True, n_hidden = 568,
-                 dropout_rate=0.4,
+                 unfreeze_last=False, n_hidden = 568,
+                 dropout_rate=0.0,
                  return_embedding=False):
 
         super().__init__()
@@ -118,9 +137,9 @@ class SPIKEHUNTER(nn.Module):
         self.repr_layer = 33
         self.net = nn.Sequential(*[
         nn.Linear(1280, n_hidden),
-        nn.ReLU(),
+        nn.GELU(),
         nn.Linear(n_hidden, 128),
-        nn.ReLU(),
+        nn.GELU(),
         nn.Linear(128,1)])
 
         for param in self.pretrained_model.parameters():
@@ -174,7 +193,7 @@ class TAPETRANSFORMER(nn.Module):
         batch_size = len(strs)
         
         emb = toks
-        device = torch.device('cuda:1')
+        device = torch.device('cuda')
         emb = emb.to(device)
         emb = emb.transpose(1, 2)
         emb = self.conv(emb)

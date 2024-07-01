@@ -19,3 +19,10 @@ multi-thread.py
 multi-thread.txt
 code/dpos_blast.py
 code/run.py
+data/false_prediction
+model_old
+data/analysis
+data_new
+dposfinder.yml
+KNN.ipynb
+new_train_process.ipynb

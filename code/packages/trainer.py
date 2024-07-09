@@ -291,6 +291,7 @@ def test_case(hyp_params, test_loader):
     criterion = getattr(nn, hyp_params.criterion)()
 
     model.return_embedding = hyp_params.return_embedding
+    model.return_subseq = hyp_params.return_subseq
     model.to(device)
     model.eval()
     if hyp_params.return_embedding:

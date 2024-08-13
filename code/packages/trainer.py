@@ -307,7 +307,7 @@ def test_case(hyp_params, test_loader):
                 truths.append(y)
         embeddings = torch.cat(embeddings).cpu().numpy()
         truths = torch.cat(truths).cpu().numpy()
-        color_dict = {'Non-depolymerase': plt.cm.Set2.colors[7], 'Depolymerase': "#FFB871"}
+        color_dict = {'Non-Dpo': plt.cm.Set2.colors[7], 'Dpo': "#FFB871"}
         output_dir = hyp_params.data_path
         # plot_umap(embeddings, truths, color_dict, title="UMAP projection of hidden embedding", output_dir = output_dir, ignore_ylabel=False)
         plot_tsne(embeddings, truths, color_dict, title="T-SNE projection of hidden embedding", output_dir = output_dir, ignore_ylabel=False)
@@ -387,10 +387,11 @@ def predict(hyp_params, test_loader):
                             label_file.write(f'{strs[i]}\n')
                         else:
                             label_file.write(f'{strs[i][index_list[i]:index_list[i]+150]}\n')
+
                 # fasta_path = os.path.join(subseq_path, f'{hyp_params.test_data.split(".")[0]}.tsv')
-                # # with open(fasta_path, 'a') as label_file:
-                # #     for i, label in enumerate(labels):
-                # #         label_file.write(str(index_list[i])+ '\n')
+                # with open(fasta_path, 'a') as label_file:
+                #     for i, label in enumerate(labels):
+                #         label_file.write(str(index_list[i])+ '\n')
 
                 # with open(fasta_path, 'a') as label_file:
                 #     for arr in index_list:

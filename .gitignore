@@ -7,6 +7,7 @@ data/phage_genomes
 data/pred_dpos
 data/valid_dpos
 data/ignored
+data/subseq
 model/Final_SPIKEHUNTER.pt
 model/Final_DPOSFINDER.pt
 log/

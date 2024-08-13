@@ -79,6 +79,8 @@ class DPOSFINDER(nn.Module):
         out = self.pretrained_model(
             toks, repr_layers=[self.repr_layer], return_contacts=False)
         emb = out["representations"][33][:, 1:-1, :] #bs,seq_len,emb_dim
+        esm_emb =  torch.cat([emb[i, :len(strs[i]) + 1].mean(0).unsqueeze(0)
+                        for i in range(batch_size)], dim=0) # average pooling along the sequence
         emb = emb * padding_mask.unsqueeze(-1).type_as(emb)
 
         emb = emb.transpose(1, 2)
@@ -93,20 +95,20 @@ class DPOSFINDER(nn.Module):
             index_list = []
             for i in range(batch_size):
                 mean_attn = attn[i, :, :len(strs[i]), :len(strs[i])].sum(0).mean(0).cpu().numpy()
-                mean_attn = np.sqrt(mean_attn)
+                mean_attn = np.log(mean_attn)
                 norm_attn = (mean_attn-min(mean_attn))/(max(mean_attn)-min(mean_attn))
                 max_sum_index = np.argmax(np.convolve(norm_attn, np.ones(150), mode='valid'))
 
-                ###calculate key position percent###
+                # ##calculate key position percent###
                 # key_aa_num = np.sum(norm_attn>0.5)
-                # key_aa_num_region = np.sum(norm_attn[max_sum_index:max_sum_index+50]>0.5)
+                # key_aa_num_region = np.sum(norm_attn[max_sum_index:max_sum_index+250]>0.5)
                 # index_start = key_aa_num_region/key_aa_num
 
-                ###calculate region attention score/ whole sequence attention score###
-                # region_attn = norm_attn[max_sum_index:max_sum_index+250].sum()
-                # index_start = region_attn/250
+                # ##calculate average region attention score
+                # region_attn = norm_attn[max_sum_index:max_sum_index+50].sum()
+                # index_start = region_attn/50
 
-                ###return the whole attn score###
+                ##return the whole attn score###
                 # index_start = norm_attn
 
                 index_start = max_sum_index

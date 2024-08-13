@@ -11,7 +11,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument('-f', default='', type=str)
 parser.add_argument('--reference_path', type=str, default='./data/subseq/published_dpos_knownKL_subseq_expand.fasta',
                     help='path to reference depolymerase file')
-parser.add_argument('--query_path', type=str, default='./data/subseq/pred_kp_dpos_subseq.fasta',
+parser.add_argument('--query_path', type=str, default='./data/subseq/phage_proteins_positive_subseq.fasta',
                     help='path to depolymerase file to be predicted')
 parser.add_argument('--output', type=str, default='./data/',
                     help='path to output file')
@@ -53,15 +53,18 @@ def align_sequences(query_record, subject_records):
     for subject_record in subject_records:
         alignment = pairwise2.align.localds(query_record.seq, subject_record.seq, blosum62, -10, -0.5)
         score = max([a.score for a in alignment])
+
+        # calculate max possible score (align with itself)
         max_possible_alignments = pairwise2.align.localds(query_record.seq, query_record.seq, blosum62, -10, -0.5)
         max_possible_score = max([a.score for a in max_possible_alignments])
+
+        # calculate normalized score
         normalized_score = score / max_possible_score if max_possible_score > 0 else 0
         alignments.append((query_record.description, subject_record.description, normalized_score, subject_record.description.split(" ")[1]))
     
-    # 对比对结果按得分进行排序
     alignments.sort(key=lambda x: x[2], reverse=True)
     
-    # 选择前 k 个结果
+    # select top k alignments
     top_k_alignments = alignments[:args.k]
     
     return top_k_alignments
@@ -84,7 +87,6 @@ with mp.Pool(processes=mp.cpu_count()) as pool:
     query_records = list(SeqIO.parse(input_file, "fasta"))
     results = pool.starmap(align_sequences, [(query_record, subject_records) for query_record in query_records])
 
-# 将结果展开为一个列表
 results = [result for sublist in results for result in sublist]
 
 df = pd.DataFrame(results, columns=["query", "subject", "score", "predict_Ktype"])

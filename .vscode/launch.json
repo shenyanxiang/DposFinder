@@ -16,11 +16,10 @@
                 "--data_path",
                 "./data_new",
                 "--test_data",
-                "KL25.fasta",
+                "8iq5.fasta",
                 "--batch_size",
-                "8",
-                "--return_embedding",
-                "--region_pooling"
+                "2",
+                "--return_attn"
             ]
         }
     ]

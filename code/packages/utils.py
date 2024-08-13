@@ -63,11 +63,11 @@ def draw_attn(output_dir, attn_dict):
         os.mkdir(os.path.join(output_dir, 'img'))
     # if not os.path.exists(os.path.join(output_dir, 'pdf')):
     #     os.mkdir(os.path.join(output_dir, 'pdf'))
-    offset = .1
+    offset = 0.01
     for key, value in attn_dict.items():
         seq = list(value[0])
         attn = value[1]
-        attn = np.sqrt(attn)
+        attn = np.log(attn)
         max_attn = max(attn)
         min_attn = min(attn)
 
@@ -100,7 +100,7 @@ def draw_attn(output_dir, attn_dict):
             logo.ax.set_xticklabels(np.array([20, 40, 60, 80, 100]) + 100*i)
             logo.style_spines(visible=False)
             logo.style_spines(spines=['left'], visible=True)
-            logo.ax.axhline(offset, color='gray', linewidth=1, linestyle='--')
+            logo.ax.axhline(0.5, color='gray', linewidth=1, linestyle='--')
         
         plt.tight_layout()
 
@@ -111,12 +111,13 @@ def draw_attn(output_dir, attn_dict):
 def plot_tsne(x, y, color_dict, title, output_dir,ignore_ylabel=False):
 
     mpl.rcParams['font.family'] = 'Arial'
-    mpl.rcParams['axes.labelsize'] = 12
-    mpl.rcParams['axes.titlesize'] = 14
-    mpl.rcParams['legend.title_fontsize'] = 11
-    mpl.rcParams['legend.fontsize'] = 11
-    mpl.rcParams['xtick.labelsize'] = 11
-    mpl.rcParams['ytick.labelsize'] = 11
+    mpl.rcParams['font.weight'] = 'regular'
+    mpl.rcParams['axes.labelsize'] = 8
+    mpl.rcParams['axes.titlesize'] = 8
+    mpl.rcParams['legend.title_fontsize'] = 8
+    mpl.rcParams['legend.fontsize'] = 8
+    mpl.rcParams['xtick.labelsize'] = 8
+    mpl.rcParams['ytick.labelsize'] = 8
     
     tsne = TSNE(n_components=2, random_state=42)
     x_tsne = tsne.fit_transform(x)
@@ -124,19 +125,31 @@ def plot_tsne(x, y, color_dict, title, output_dir,ignore_ylabel=False):
     x_min, x_max = x_tsne.min(0), x_tsne.max(0)
     x_norm = (x_tsne - x_min) / (x_max - x_min)
 
-    plt.figure(figsize=(6, 6))
+    cm = 1/2.54
+
+    fig, ax = plt.subplots(figsize=(6.5*cm, 6.5*cm))
 
     for i, (name, color) in enumerate(color_dict.items()):
-        plt.scatter(x_norm[y == i, 0], x_norm[y == i, 1], c=color, alpha=0.8, s=10, label=name)
- 
-    plt.xlabel("T-SNE Dimension 1")
-    if not ignore_ylabel:
-        plt.ylabel("T-SNE Dimension 2")
+        ax.scatter(x_norm[y == i, 0], x_norm[y == i, 1], color=color, alpha=0.8, s=2, label=name)
 
-    plt.title(title)
-    plt.legend(loc="lower left")
-    plt.savefig(os.path.join(output_dir, f"img/tsne.png"), dpi=300)
-    plt.savefig(os.path.join(output_dir, f"pdf/tsne.pdf"))
+    ax.set_aspect('equal', 'box')
+ 
+    ax.set_xlabel("")
+    if not ignore_ylabel:
+        ax.set_ylabel("")
+
+    ax.set_title(title)
+
+    legend = ax.legend(loc="best", markerscale=2)
+
+    for legend_handle in legend.legendHandles:
+        legend_handle._sizes = [10]  # Increase legend marker size
+
+    plt.tight_layout()
+
+    plt.savefig(os.path.join(output_dir, "img/tsne.png"), dpi=300, bbox_inches='tight')
+    plt.savefig(os.path.join(output_dir, "pdf/tsne.pdf"), transparent=True, bbox_inches='tight')
+    plt.close(fig)
 
 # def plot_umap(x, y, color_dict, title, output_dir, ignore_ylabel=False):
 #     reducer = umap.UMAP(random_state=42)

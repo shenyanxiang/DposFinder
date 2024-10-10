@@ -104,7 +104,7 @@ def draw_attn(output_dir, attn_dict):
         
         plt.tight_layout()
 
-        plt.savefig(os.path.join(output_dir, f"img/{key}_attn.png"), dpi=300)
+        plt.savefig(os.path.join(output_dir, f"img/{key}_attn.png"), dpi=300, transparent=True)
         # plt.savefig(os.path.join(output_dir, f"pdf/{key}_attn.pdf"))
         plt.close()
 

@@ -22,7 +22,7 @@ conda activate DposFinder
 
 3. Download trained DposFinder model from the link below and put it into `model` directory:
 
-https://tool2-mml.sjtu.edu.cn/DposFinder/model/Final_DposFinder.pt
+https://zenodo.org/records/13310759
 
 or you can retrain DposFinder model with optional params by running:
 ```

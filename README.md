@@ -8,7 +8,7 @@ To install DposFinder, follow these steps：
 
 1. Clone the repository:
 ```
-git clone https://github.com/shenyanxiang/DposFinder`
+git clone https://github.com/shenyanxiang/DposFinder
 ```
 
 

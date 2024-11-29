@@ -1,2 +1,2 @@
-You can download trained DposFinder model from: https://tool2-mml.sjtu.edu.cn/DposFinder/model/Final_DposFinder.pt
+You can download trained DposFinder model from: https://zenodo.org/records/13310759
 and put it in this directory.

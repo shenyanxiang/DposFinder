@@ -9,7 +9,7 @@ import os
 parser = argparse.ArgumentParser(
     description='predict specific serotype of phage depolymerase')
 parser.add_argument('-f', default='', type=str)
-parser.add_argument('--reference_path', type=str, default='./data/subseq/published_dpos_knownKL_subseq_expand.fasta',
+parser.add_argument('--reference_path', type=str, default='./data/subseq/Klebsiella_dpos_ref_350.fasta',
                     help='path to reference depolymerase file')
 parser.add_argument('--query_path', type=str, default='./data/subseq/phage_proteins_positive_subseq.fasta',
                     help='path to depolymerase file to be predicted')

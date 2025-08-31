@@ -71,6 +71,8 @@ parser.add_argument('--return_embedding', action='store_true',
                     help='return hidden embeddings instead of logits (default: False)')
 parser.add_argument('--return_subseq', action='store_true',
                     help='return high attention region pooling embeddings for serotype prediction (default: False)')
+parser.add_argument('--return_subseq_len', type=int, default=350,
+                    help='length of subsequence to return (default: 350)')
 parser.add_argument('--return_attn', action='store_true',
                     help='return attention weights (default: False)')
 parser.add_argument('--kfold', default=0, type=int,

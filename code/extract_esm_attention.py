@@ -1,0 +1,84 @@
+import os
+import numpy as np
+import torch
+import esm
+
+# 1) Load ESM2
+esm_model, alphabet = esm.pretrained.esm2_t33_650M_UR50D()
+batch_converter = alphabet.get_batch_converter()
+esm_model.eval()
+device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+esm_model.to(device)
+
+# 2) Helper: aggregate per-position **raw** scores (no log/minmax)
+def aggregate_attn_raw(attn, mask):
+    """
+    attn: (B, H, L, L) after trimming BOS/EOS
+    mask: (B, L) boolean for real tokens
+    Returns: (B, L) per-position raw scores:
+             sum over heads -> (B, L, L), then mean over j on real tokens.
+    """
+    A = attn.sum(dim=1)                                   # (B, L, L), head-summed raw
+    mask_f = mask.float()
+    denom = mask_f.sum(dim=1, keepdim=True).clamp_min(1)  # (B,1)
+    per_pos = (A * mask_f.unsqueeze(1)).sum(dim=2) / denom
+    return per_pos  # raw (no log/minmax)
+
+# 3) Prepare your data
+labels = ['8iq5_esm','7w1c_esm','6tku_esm','8bke_esm']
+strs   = ['MALVDLVRAGGYSVEYPQFSSMAKLKAFPHSEDGQLVRLLSWHEGVGLGGGLFKVSTSSTATGNDGTVVVASNGVRLLRVVNGPIWADMFGALPNSDIDSMPAVAAAYAYAASVNTDLYIGVATYKFKGSTPINVDPSRAGIIGYQGKVRIDCSEFTGSIVFSINSSYSYTPAAYYNNLSPALQGLYVFGAKTSGVDGLLVGRETVGSDKSYNGQTEVRECTFDKFDRNIRMGHNSWRFVFYKVNSLNALSPNGILYVPAGLDDSGEILSFYHCQFFDGAGSNIRLSCSSYTMVFNTCSFLNITFFVDSASSATVTCNGCNFENPGSASTRRYVDISAGHTNVFNIIGGSIVTNSNPGQTQALLYVSTDNLLNLVGVTAPYGGHYQQEQELGYHAFIGGAGTVTTSGVMLQLRNGAGTCPLHSSLSTFSNWNFGYGNLNAWTVDKGTGTSSVVEYLANAGPKGTEGAMRVAPVSVGTNVSQVQAVTNPGMFSMSCMVNIATTPGNAGQVSIGFLDAAGNSLPGGVSANLGTTTGWQVIGKNTLRGKVPIGAKQVRVNIQTVAGADVKYAYLLCNVVKKLGC',
+          'MALIRLVAPERVFSDLASMVAYPNFQVQDKITLLGSAGGDFTFTTTASVVDNGTVFAVPGGYLLRKFVGPAYSSWFSNWTGIVTFMSAPNRHLVVDTVLQATSVLNIKSNSTLEFTDTGRILPDAAVARQVLNITGSAPSVFVPLAADAAAGSKVITVAAGALSAVKGTYLYLRSNKLCDGGPNTYGVKISQIRKVVGVSTSGGVTSIRLDKTLHYNYYLSDAAEVGIPTMVENVTLVSPYINEFGYDDLNRFFTIGISANFAADLHIQDGVIIGNKRPGASDIEGRSAIKFNNCVDSTVKGTCFYNIGWYGVEVLGCSEDTEVHDIHAMDVRHAISLNWQSTADGDKWGEPIEFLGVNCEAYSTTQAGFDTHDIGKRVKFVRCVSYDSAAAGFQARTNGVEYLNCRAYRAAMDGFASNTGVAFPIYRECLAYDNVRSGFNCSYGGGYVYDCEAHGSQNGVRINGGRVKGGRYTRNSSSHIFVTKDVAETAQTSLEIDGVSMRYDGTGRAVYFHGTVGIDPTLVSMSNNDMTGHGLFWALLSGYTVQPTPPRMSRNLLDDTGIRGVATLVAGEATVNARVRGNFGSVANSFKWVSEVKLTRLTFPSSAGALTVTSVAQNQDVPTPNPDLNSFVIRSSNAADVSQVAWEVYL',
+          'MLDNFNQPKGSTIGVLKDGRTIQEAFDSLPRLESFSGSTATDKLRAAITLGVSEVAIGPVEGNGGRPYEFGDVVIPYPLRIVGCGSQGINVTKGTVLKRSAGASFMFHFTGEGQAQRPMGGGLFNINLNGDTATALGDIIKVTQWSYFKANNCAFQNMAGWGIRLKDVMESNISGNLFRRLGGPSGGGILFDDVRSAVTDNVNNLHIEDNTFALMSGPWIGSTANSNPDLIWIVRNKFEFDGTPAAPNTVDSYVLDFQQLSRAFIQDNGFTHFTTERNRYVGVLRVGATAVGTIKFEDNLLFACESAGLIAGGIVVSRGNVNNQGSATTAIKQFTNTSSKLCKLERVINVQSNGNVSVGQQILPDGYINMAELPGNTRLPSEYDADGETTSVLRVPANTQVRQWSVPKMYKDGLTVTKVTVRAKGAAAGAILSLQSGSTVLSTKSIDAGVWKNYVFYVKANQLQETLQLRNTGTADVLADGMVFGKVDYIDWDFAIAPGTLAAGAKYTTPNQSYLDVAGMRVQAVSIPMFDGPTTGLQVWVEATSANGSFVVVMKNDTGSELVTTVTRCRVRAFVSKGHHHHHH',
+          'MALTKLVDAGAWQVEVAPAGTVQDSLVFLSPRNFGGVPGTGVDSVAAIEAALAAGDVDLGGEHWFISRPIYCVSGRTIQNGKISTLAAQGSGFMAGSIFAPGNYHPVYVDPVPKLACSSTNGSATITVSSHEFVVGDLVRLSSTRGIIGSDAVLVPWYMQLARVVGVSGDTVKLDAPIDTTETLVVHKATPAGYNARFNKPLFVLERATFRNIEVDTWDYWTADSATFECAFEGIRGKARSVVYGNTFCRTNFDNIDITFSNKASEMAFGSHDTNLSNIKFRADSQNWDSTNSVGISWAESGRRCTLDNWQLLVPQGVNLSVLVRISSHRDVQIRKGFIQVHSSSNNILSVEHYGGDRPPCNNILFEDIDVNATGAAAVVVDVYKSANDSAINAVRFEGISYRGATPSVALMRQRGTTSNQVTGVRASLYSANGGAFLVSSAMAWDVRLYGPGLQVPAAVAVLGRTAVLSASRSNLHALRWVTEAIIGVTSTTPGNVLREAVIPAGTLRASDYIDFVISGSTGGATSTKDVLVGVLDSGSNFQGVGFTAPTTEESYYTVQGRISFPTTGNCLITATIGRAGVGVSYARTLVSISNYTTNDVKLQVQAWVGSSAGSLSVQHGCFAPSELTGKGHHHHHH']
+data = list(zip(labels, strs))
+
+# 4) Run & save raw attentions
+attn_root = os.path.join('./data', "attn", "attn_npz")
+os.makedirs(attn_root, exist_ok=True)
+
+BATCH_SIZE = 1
+for i in range(0, len(data), BATCH_SIZE):
+    batch = data[i:i+BATCH_SIZE]
+    batch_labels, batch_strs, batch_tokens = batch_converter(batch)
+    batch_tokens = batch_tokens.to(device)
+
+    with torch.no_grad():
+        out = esm_model(
+            batch_tokens,
+            repr_layers=[33],
+            return_contacts=False,
+            need_head_weights=True
+        )
+
+    # last-layer attention (B, H, T, T)
+    if "attentions" in out:
+        last_attn = out["attentions"][-1]
+    elif "attn" in out:
+        last_attn = out["attn"][-1]
+    else:
+        raise RuntimeError("No attention found in ESM output.")
+
+    # trim BOS/EOS -> (B, H, L, L)
+    last_attn = last_attn[:, :, 1:-1, 1:-1]
+    mask = (batch_tokens != alphabet.padding_idx)[:, 1:-1]  # (B, L)
+
+    # per-position RAW scores (no log/minmax)
+    perpos_raw = aggregate_attn_raw(last_attn, mask).cpu().numpy()
+
+    # save per sequence
+    for b, lab in enumerate(batch_labels):
+        seq = batch_strs[b]
+        L = len(seq)
+
+        # slice to real length
+        perpos_raw_seq = perpos_raw[b, :L]
+        attn_mat_seq = last_attn[b, :, :L, :L].cpu().numpy()  # (H, L, L), raw
+
+        out_path = os.path.join(attn_root, f"{lab}.npz")
+        np.savez_compressed(
+            out_path,
+            sequence=np.array(seq),
+            esm2_attn_perpos_raw=perpos_raw_seq,   # 1D vector (L,)
+            esm2_attn_matrix=attn_mat_seq          # 3D tensor (H, L, L)
+        )
+        print(f"Saved raw ESM2 attention to {out_path}")

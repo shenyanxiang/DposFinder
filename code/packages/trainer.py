@@ -20,67 +20,99 @@ def initiate(hyp_params, train_loader, valid_loader, test_loader):
         device = torch.device("cuda")
     else:
         device = torch.device("cpu")
-    model.to(device)
 
-    optimizer = getattr(optim, hyp_params.optim)(
-        model.parameters(), lr=hyp_params.lr, weight_decay=hyp_params.weight_decay)
-    criterion = getattr(nn, hyp_params.criterion)()
-
-    scheduler = ReduceLROnPlateau(
-        optimizer, mode='min', patience=hyp_params.when, factor=0.1, verbose=True)
-    settings = {'model': model,
-                'optimizer': optimizer,
-                'criterion': criterion,
-                'scheduler': scheduler}
-    return train_model(settings, hyp_params, train_loader, valid_loader, test_loader, device)
+    if hyp_params.model == 'PHAGEDPO':
+        settings = {
+            'model': model
+        }
+        return train_model(settings, hyp_params, train_loader, valid_loader, test_loader, device)
+    else:
+        model.to(device)
+        optimizer = getattr(optim, hyp_params.optim)(
+            model.parameters(), lr=hyp_params.lr, weight_decay=hyp_params.weight_decay)
+        criterion = getattr(nn, hyp_params.criterion)()
+        scheduler = ReduceLROnPlateau(
+            optimizer, mode='min', patience=hyp_params.when, factor=0.1, verbose=True)
+        settings = {'model': model,
+                    'optimizer': optimizer,
+                    'criterion': criterion,
+                    'scheduler': scheduler}
+        return train_model(settings, hyp_params, train_loader, valid_loader, test_loader, device)
 
 
 def train_model(settings, hyp_params, train_loader, valid_loader, test_loader, device):
     model = settings['model']
-    optimizer = settings['optimizer']
-    criterion = settings['criterion']
-
-    scheduler = settings['scheduler']
-    os.makedirs('./log/', exist_ok=True)
-    log_dir = './log/'
-    logging.basicConfig(handlers=[
-        logging.FileHandler(filename=f'./log/train_{hyp_params.fold_num}.log', encoding='utf-8', mode='w+')],
-        format="%(asctime)s %(levelname)s:%(message)s", datefmt="%F %A %T", level=logging.INFO)
-    writer = SummaryWriter(log_dir)
-
-    def train(model, optimizer, criterion, device):
-        epoch_loss = 0
-        model.train()
-        num_batches = hyp_params.n_train//hyp_params.batch_size
-        proc_loss, proc_size = 0, 0
-        start_time = time.time()
-        i_batch = 0
+    if hyp_params.model == 'PHAGEDPO':
+        print("Using SVM pipeline for PHAGEDPO")
+        train_seqs, train_labels = [], []
         for labels, strs, toks in train_loader:
-            optimizer.zero_grad()
-            i_batch += 1
-            toks.to(device)
-            y = torch.tensor(labels, device=device).float().unsqueeze(-1)
+            train_seqs.extend(strs)
+            train_labels.extend(labels)
+        model.fit(train_seqs, train_labels)
 
-            batch_size = hyp_params.batch_size
-            logits = model(strs, toks)
-            loss = criterion(logits, y)
-            loss.backward()
+        valid_seqs, valid_labels = [], []
+        for labels, strs, toks in valid_loader:
+            valid_seqs.extend(strs)
+            valid_labels.extend(labels)
+        valid_pred = model.predict(valid_seqs)
+        valid_prob = model.forward(valid_seqs)
+        val_metrics = metrics(torch.tensor(valid_prob), torch.tensor(valid_labels))
+        print("Validation metrics:", val_metrics)
+        test_seqs, test_labels = [], []
+        for labels, strs, toks in test_loader:
+            test_seqs.extend(strs)
+            test_labels.extend(labels)
+        test_pred = model.predict(test_seqs)
+        test_prob = model.forward(test_seqs)
+        test_metrics = metrics(torch.tensor(test_prob), torch.tensor(test_labels))
+        print("Test metrics:", test_metrics)
 
-            torch.nn.utils.clip_grad_norm_(model.parameters(), hyp_params.clip)
-            optimizer.step()
+        return val_metrics["F1-score"]
+    else:
+        optimizer = settings['optimizer']
+        criterion = settings['criterion']
 
-            proc_loss += loss.item() * batch_size
-            proc_size += batch_size
-            epoch_loss += loss.item() * batch_size
-            if i_batch % hyp_params.log_interval == 0 and i_batch > 0:
-                avg_loss = proc_loss / proc_size
-                elapsed_time = time.time() - start_time
-                print('Epoch {:2d} | Batch {:3d}/{:3d} | Time/Batch(ms) {:5.2f} | Train Loss {:5.4f}'.
-                      format(epoch, i_batch, num_batches, elapsed_time * 1000 / hyp_params.log_interval, avg_loss))
-                proc_loss, proc_size = 0, 0
-                start_time = time.time()
+        scheduler = settings['scheduler']
+        os.makedirs('./log/', exist_ok=True)
+        log_dir = './log/'
+        logging.basicConfig(handlers=[
+            logging.FileHandler(filename=f'./log/train_{hyp_params.fold_num}.log', encoding='utf-8', mode='w+')],
+            format="%(asctime)s %(levelname)s:%(message)s", datefmt="%F %A %T", level=logging.INFO)
+        writer = SummaryWriter(log_dir)
 
-        return epoch_loss / hyp_params.n_train
+        def train(model, optimizer, criterion, device):
+            epoch_loss = 0
+            model.train()
+            num_batches = hyp_params.n_train//hyp_params.batch_size
+            proc_loss, proc_size = 0, 0
+            start_time = time.time()
+            i_batch = 0
+            for labels, strs, toks in train_loader:
+                optimizer.zero_grad()
+                i_batch += 1
+                toks.to(device)
+                y = torch.tensor(labels, device=device).float().unsqueeze(-1)
+
+                batch_size = hyp_params.batch_size
+                logits = model(strs, toks)
+                loss = criterion(logits, y)
+                loss.backward()
+
+                torch.nn.utils.clip_grad_norm_(model.parameters(), hyp_params.clip)
+                optimizer.step()
+
+                proc_loss += loss.item() * batch_size
+                proc_size += batch_size
+                epoch_loss += loss.item() * batch_size
+                if i_batch % hyp_params.log_interval == 0 and i_batch > 0:
+                    avg_loss = proc_loss / proc_size
+                    elapsed_time = time.time() - start_time
+                    print('Epoch {:2d} | Batch {:3d}/{:3d} | Time/Batch(ms) {:5.2f} | Train Loss {:5.4f}'.
+                        format(epoch, i_batch, num_batches, elapsed_time * 1000 / hyp_params.log_interval, avg_loss))
+                    proc_loss, proc_size = 0, 0
+                    start_time = time.time()
+
+            return epoch_loss / hyp_params.n_train
 
     def evaluate(model, criterion, device, test=False):
         model.eval()
@@ -378,15 +410,15 @@ def predict(hyp_params, test_loader):
 
                 subseq_path = os.path.join(hyp_params.data_path, 'subseq/')
                 os.makedirs(subseq_path, exist_ok=True)
-                fasta_path = os.path.join(subseq_path, f'{hyp_params.test_data.split(".")[0]}_subseq.fasta')
+                fasta_path = os.path.join(subseq_path, f'{hyp_params.test_data.split(".")[0]}_subseq_{hyp_params.return_subseq_len}.fasta')
 
                 with open(fasta_path, 'a') as label_file:
                     for i, label in enumerate(labels):
                         label_file.write(f'>{label}\n')
-                        if len(strs[i]) < 150:
+                        if len(strs[i]) < hyp_params.return_subseq_len:
                             label_file.write(f'{strs[i]}\n')
                         else:
-                            label_file.write(f'{strs[i][index_list[i]:index_list[i]+150]}\n')
+                            label_file.write(f'{strs[i][index_list[i]:index_list[i]+hyp_params.return_subseq_len]}\n')
 
                 # fasta_path = os.path.join(subseq_path, f'{hyp_params.test_data.split(".")[0]}.tsv')
                 # with open(fasta_path, 'a') as label_file:

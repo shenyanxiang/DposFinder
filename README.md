@@ -26,8 +26,9 @@ https://zenodo.org/records/13310759
 
 or you can retrain DposFinder model with optional params by running:
 ```
-python ./code/main.py [--FLAGS]
+python ./code/main.py --mode final_train --data_path ./data [--FLAGS]
 ```
+
 params can be checked by command:
 ```
 python ./code/main.py -h

@@ -35,3 +35,4 @@ data_detail_description.ipynb
 data/Acinetobacter_dpos_align.tsv
 scripts/create_subseq.sh
 5fold_output.txt
+data/subseq/all_fasta_pairwise_normalized_score.tsv

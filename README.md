@@ -2,6 +2,8 @@
 
 DposFinder is a transformer-based protein language model for phage-encoded depolymerase and their target serotype prediction.
 
+DposFinder has been published on Genome Medicine: https://doi.org/10.1186/s13073-026-01657-3
+
 ## Setup
 
 To install DposFinder, follow these steps：
